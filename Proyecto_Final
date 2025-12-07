@@ -1,0 +1,191 @@
+import sqlite3
+import os
+
+# --- Configuración de la Base de Datos ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SCRIPT_DIR, "inventario.db")
+
+def inicializar_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS productos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            descripcion TEXT,
+            cantidad INTEGER NOT NULL,
+            precio REAL NOT NULL,
+            categoria TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# --- Funciones Auxiliares ---
+def validar_texto(mensaje, error_vacio, error_numerico):
+    while True:
+        dato = input(mensaje).strip()
+        if not dato:
+            print(error_vacio)
+        elif dato.isdigit():
+            print(error_numerico)
+        else:
+            return dato
+
+def validar_entero(mensaje, error):
+    while True:
+        try:
+            dato = int(input(mensaje).strip())
+            if dato >= 0:
+                return dato
+            else:
+                print("Error: Debe ser un número positivo.")
+        except ValueError:
+            print(error)
+
+def validar_float(mensaje, error):
+    while True:
+        try:
+            dato = float(input(mensaje).strip())
+            if dato >= 0:
+                return dato
+            else:
+                print("Error: Debe ser un número positivo.")
+        except ValueError:
+            print(error)
+
+# --- Funciones CRUD ---
+def agregar_producto():
+    print("\n--- Registrar Nuevo Producto ---")
+    nombre = validar_texto("Nombre: ", "Error: Vacío.", "Error: No puede ser solo números.")
+    descripcion = input("Descripción: ").strip() 
+    cantidad = validar_entero("Cantidad: ", "Error: Entero inválido.")
+    precio = validar_float("Precio: ", "Error: Precio inválido.")
+    categoria = validar_texto("Categoría: ", "Error: Vacío.", "Error: Numérico.")
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO productos (nombre, descripcion, cantidad, precio, categoria) VALUES (?, ?, ?, ?, ?)",
+                   (nombre, descripcion, cantidad, precio, categoria))
+    conn.commit()
+    conn.close()
+    print(f"¡Producto '{nombre}' registrado!")
+
+def mostrar_productos():
+    print("\n--- Visualizar Productos ---")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM productos")
+    productos = cursor.fetchall()
+    conn.close()
+
+    if not productos:
+        print("No hay productos registrados.")
+    else:
+        print(f"{'ID':<4} {'Nombre':<20} {'Categoría':<15} {'Precio':<10} {'Cant.':<8} {'Descripción'}")
+        print("-" * 90)
+        for prod in productos:
+            print(f"{prod[0]:<4} {prod[1]:<20} {prod[5]:<15} ${prod[4]:<9.2f} {prod[3]:<8} {prod[2]}")
+
+def actualizar_producto():
+    print("\n--- Actualizar Producto ---")
+    id_prod = validar_entero("ID a actualizar: ", "Error: ID inválido.")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM productos WHERE id = ?", (id_prod,))
+    producto = cursor.fetchone()
+    
+    if not producto:
+        print("Producto no encontrado.")
+        conn.close()
+        return
+
+    print(f"Editando: {producto[1]}")
+    nombre = validar_texto("Nuevo Nombre: ", "Error: Vacío.", "Error: Numérico.")
+    descripcion = input("Nueva Descripción: ").strip()
+    cantidad = validar_entero("Nueva Cantidad: ", "Error: Entero inválido.")
+    precio = validar_float("Nuevo Precio: ", "Error: Precio inválido.")
+    categoria = validar_texto("Nueva Categoría: ", "Error: Vacío.", "Error: Numérico.")
+
+    cursor.execute('''UPDATE productos SET nombre=?, descripcion=?, cantidad=?, precio=?, categoria=? WHERE id=?''', 
+                   (nombre, descripcion, cantidad, precio, categoria, id_prod))
+    conn.commit()
+    conn.close()
+    print("¡Actualizado!")
+
+def eliminar_producto():
+    print("\n--- Eliminar Producto ---")
+    id_prod = validar_entero("ID a eliminar: ", "Error: ID inválido.")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM productos WHERE id = ?", (id_prod,))
+    if cursor.rowcount > 0:
+        conn.commit()
+        print("¡Eliminado!")
+    else:
+        print("ID no encontrado.")
+    conn.close()
+
+def buscar_producto():
+    print("\n--- Buscar Producto ---")
+    print("1. Por ID\n2. Por Nombre/Categoría")
+    sub = input("Opción: ")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    if sub == '1':
+        id_prod = validar_entero("ID: ", "Error.")
+        cursor.execute("SELECT * FROM productos WHERE id = ?", (id_prod,))
+        res = cursor.fetchall()
+    elif sub == '2':
+        termino = input("Término: ").strip()
+        cursor.execute("SELECT * FROM productos WHERE nombre LIKE ? OR categoria LIKE ?", (f'%{termino}%', f'%{termino}%'))
+        res = cursor.fetchall()
+    else:
+        conn.close(); return
+
+    conn.close()
+    if res:
+        print(f"\nCoincidencias:")
+        for prod in res:
+             print(f"ID: {prod[0]} | Nombre: {prod[1]} | Desc: {prod[2]} | Stock: {prod[3]}")
+    else:
+        print("Sin resultados.")
+
+def reporte_bajo_stock():
+    print("\n--- Reporte de Bajo Stock ---")
+    limite = validar_entero("Límite de cantidad: ", "Error.")
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM productos WHERE cantidad <= ?", (limite,))
+    resultados = cursor.fetchall()
+    conn.close()
+
+    if resultados:
+        print(f"\nProductos con stock igual o menor a {limite}:")
+        print(f"{'ID':<4} {'Nombre':<20} {'Stock':<6} {'Descripción'}")
+        print("-" * 60)
+        for prod in resultados:
+            print(f"{prod[0]:<4} {prod[1]:<20} {prod[3]:<6} {prod[2]}")
+    else:
+        print("No hay productos con stock bajo ese límite.")
+
+# --- Ejecución ---
+inicializar_db()
+
+while True:
+    print("\n=== GESTIÓN DE PRODUCTOS ===")
+    print("1. Registrar | 2. Mostrar | 3. Actualizar | 4. Eliminar | 5. Buscar | 6. Reporte de bajo Stock | 7. Salir")
+    opcion = input("Opción: ").strip()
+
+    if opcion == '1': agregar_producto()
+    elif opcion == '2': mostrar_productos()
+    elif opcion == '3': actualizar_producto()
+    elif opcion == '4': eliminar_producto()
+    elif opcion == '5': buscar_producto()
+    elif opcion == '6': reporte_bajo_stock()
+    elif opcion == '7': 
+        print("\n¡Gracias por utilizar el Sistema de Gestión! Hasta la próxima.")
+        break
+    else: print("Opción no válida.")
