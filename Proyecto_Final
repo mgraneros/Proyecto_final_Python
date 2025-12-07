@@ -175,9 +175,16 @@ def reporte_bajo_stock():
 inicializar_db()
 
 while True:
-    print("\n=== GESTIÓN DE PRODUCTOS ===")
-    print("1. Registrar | 2. Mostrar | 3. Actualizar | 4. Eliminar | 5. Buscar | 6. Reporte de bajo Stock | 7. Salir")
-    opcion = input("Opción: ").strip()
+    print("\n=== SISTEMA DE GESTIÓN DE PRODUCTOS ===")
+    print("1. Registrar nuevo producto")
+    print("2. Visualizar productos")
+    print("3. Actualizar producto")
+    print("4. Eliminar producto")
+    print("5. Buscar productos")
+    print("6. Reporte de bajo stock")
+    print("7. Salir")
+    
+    opcion = input("Seleccione una opción: ").strip()
 
     if opcion == '1': agregar_producto()
     elif opcion == '2': mostrar_productos()
