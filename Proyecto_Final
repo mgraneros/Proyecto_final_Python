@@ -175,7 +175,7 @@ def reporte_bajo_stock():
 inicializar_db()
 
 while True:
-    print("\n=== SISTEMA DE GESTIÓN DE PRODUCTOS ===")
+    print("\n=== BIENVENIDO AL SISTEMA DE GESTIÓN DE PRODUCTOS ===")
     print("1. Registrar nuevo producto")
     print("2. Visualizar productos")
     print("3. Actualizar producto")
